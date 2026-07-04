@@ -55,6 +55,7 @@ async function main() {
   console.log("\nbash guard — blocked");
 
   const blockedTests: Array<{ cmd: string; desc: string }> = [
+    // cat/sed/head reading SKILL.md directly
     {
       cmd: `cat ${HOME}/.agents/skills/context7-mcp/SKILL.md`,
       desc: "cat ~/.agents/skills/foo/SKILL.md is blocked",
@@ -64,28 +65,37 @@ async function main() {
       desc: "cat ~/.pi/agent/skills/foo/SKILL.md is blocked",
     },
     {
-      cmd: `sed -n '1,50p' .pi/skills/ask-chatgpt/SKILL.md`,
+      cmd: `sed -n '1,80p' .pi/skills/ask-chatgpt/SKILL.md`,
       desc: "sed .pi/skills/foo/SKILL.md is blocked",
     },
     {
       cmd: `head ${HOME}/.agents/skills/visual-test/SKILL.md`,
       desc: "head ~/.agents/skills/foo/SKILL.md is blocked",
     },
+    // find/grep/rg searching for SKILL.md
     {
       cmd: `find /home/haemmid -name SKILL.md`,
       desc: "find /home/... -name SKILL.md is blocked",
-    },
-    {
-      cmd: `grep -R SKILL.md ~/.agents`,
-      desc: "grep -R SKILL.md ~/.agents is blocked",
     },
     {
       cmd: `find ~ -name SKILL.md`,
       desc: "find ~ -name SKILL.md is blocked",
     },
     {
-      cmd: `grep -R skill ~/.pi/agent/skills`,
-      desc: "grep -R skill ~/.pi/agent/skills is blocked",
+      cmd: `find .pi/skills/foo -name SKILL.md`,
+      desc: "find .pi/skills/foo -name SKILL.md is blocked",
+    },
+    {
+      cmd: `grep -R SKILL.md ~/.agents`,
+      desc: "grep -R SKILL.md ~/.agents is blocked",
+    },
+    {
+      cmd: `grep -R SKILL.md .pi/skills/foo`,
+      desc: "grep -R SKILL.md .pi/skills/foo is blocked",
+    },
+    {
+      cmd: `rg SKILL.md .pi/skills`,
+      desc: "rg SKILL.md .pi/skills is blocked",
     },
   ];
 
@@ -98,22 +108,50 @@ async function main() {
     );
   }
 
-  // ── Bash guard: PASSED cases ───────────────────────────────────────
+  // ── Bash guard: PASSED cases (regression) ──────────────────────────
   console.log("\nbash guard — passed");
 
   const passedTests: Array<{ cmd: string; desc: string }> = [
+    // Normal files
     { cmd: "cat package.json", desc: "cat package.json passes" },
     { cmd: "cat my-SKILL.md-notes.txt", desc: "cat my-SKILL.md-notes.txt passes" },
-    { cmd: 'find . -name "*.ts"', desc: "find . -name \"*.ts\" passes" },
-    { cmd: "find .", desc: "find . (no args) passes" },
-    { cmd: "find . -name \"*.md\"", desc: "find . -name \"*.md\" passes" },
-    { cmd: "grep -R foo .", desc: "grep -R foo . passes" },
-    { cmd: "ls .pi/skills/", desc: "ls .pi/skills/ passes" },
-    { cmd: "grep -R foo src/", desc: "grep -R foo src/ passes" },
     { cmd: "cat README.md", desc: "cat README.md passes" },
+    { cmd: "cat /etc/hostname", desc: "cat /etc/hostname passes" },
+    // Scripts and assets inside skill directories
+    {
+      cmd: "bash .pi/skills/foo/scripts/run.sh",
+      desc: "bash .pi/skills/foo/scripts/run.sh passes",
+    },
+    {
+      cmd: "node ~/.pi/agent/skills/foo/scripts/build.js",
+      desc: "node ~/.pi/agent/skills/foo/scripts/build.js passes",
+    },
+    {
+      cmd: "python .pi/skills/foo/tool.py",
+      desc: "python .pi/skills/foo/tool.py passes",
+    },
+    // Directory listing and traversal
+    {
+      cmd: "ls .pi/skills/foo/",
+      desc: "ls .pi/skills/foo/ passes",
+    },
+    {
+      cmd: "ls .pi/skills/",
+      desc: "ls .pi/skills/ passes",
+    },
+    {
+      cmd: "find .pi/skills/foo/scripts -type f",
+      desc: "find .pi/skills/foo/scripts -type f passes",
+    },
+    { cmd: 'find . -name "*.ts"', desc: 'find . -name "*.ts" passes' },
+    { cmd: 'find . -name "*.md"', desc: 'find . -name "*.md" passes' },
+    { cmd: "find .", desc: "find . (no args) passes" },
+    // grep without SKILL.md
+    { cmd: "grep -R TODO .pi/skills/foo/scripts", desc: "grep -R TODO .pi/skills/foo/scripts passes" },
+    { cmd: "grep -R foo .", desc: "grep -R foo . passes" },
+    { cmd: "grep -R foo src/", desc: "grep -R foo src/ passes" },
     { cmd: "rg 'hello' src/", desc: "rg 'hello' src/ passes" },
     { cmd: "ls -la", desc: "ls -la passes" },
-    { cmd: "cat /etc/hostname", desc: "cat /etc/hostname passes" },
   ];
 
   for (const { cmd, desc } of passedTests) {

@@ -4,7 +4,7 @@ Canonical `SKILL.md` path correction and bash skill-access guard for Pi.
 
 `pi-skill-paths` intercepts `read` and `bash` tool calls to:
 
-- **Bash guard** — block attempts to read or search Pi skill files via bash (`cat`, `sed`, `head`, `find`, `grep`)
+- **Bash guard** — block bash-based read/search of `SKILL.md` only (not skill directories)
 - **Read autocorrect** — silently normalize skill directory paths, resolve relative `.pi/skills/` paths, substitute canonical absolute paths
 
 Works with Pi / pi-web environments where extensions can intercept `read` and `bash` tool calls.
@@ -25,7 +25,7 @@ This extension prevents that and auto-corrects paths so the agent uses `read` th
 
 ## Features
 
-- **Bash guard** — blocks `cat`/`sed`/`head` on skill-like paths and `find`/`grep`/`ls`/`rg` on recursive skill searches
+- **Bash guard** — blocks `cat`/`sed`/`head` on `SKILL.md` and `find`/`grep`/`rg` searching for `SKILL.md`; does NOT block scripts, assets, or directory listing
 - **Read autocorrect** — normalizes skill directory paths, resolves relative `.pi/skills/` paths, substitutes canonical absolute paths
 - **Zero config** — works out of the box, no settings needed
 - **No npm deps** — only `node:fs/promises` and `node:path`
@@ -60,16 +60,27 @@ pi install /path/to/pi-skill-paths
 | `cat ~/.agents/skills/humanizer/SKILL.md` | BLOCK |
 | `sed -n '1,50p' .pi/skills/foo/SKILL.md` | BLOCK |
 | `head ~/.agents/skills/visual-test/SKILL.md` | BLOCK |
+| `cat ~/.pi/agent/skills/ask-chatgpt/SKILL.md` | BLOCK |
+| `cat ~/.agents/skills/humanizer/SKILL.md` | BLOCK |
+| `sed -n '1,80p' .pi/skills/foo/SKILL.md` | BLOCK |
+| `head ~/.agents/skills/visual-test/SKILL.md` | BLOCK |
 | `find /home/haemmid -name SKILL.md` | BLOCK |
-| `grep -R SKILL.md ~/.agents` | BLOCK |
 | `find ~ -name SKILL.md` | BLOCK |
+| `find .pi/skills/foo -name SKILL.md` | BLOCK |
+| `grep -R SKILL.md ~/.agents` | BLOCK |
+| `grep -R SKILL.md .pi/skills/foo` | BLOCK |
+| `rg SKILL.md .pi/skills` | BLOCK |
 | `cat package.json` | PASSES |
 | `cat my-SKILL.md-notes.txt` | PASSES |
+| `bash .pi/skills/foo/scripts/run.sh` | PASSES |
+| `node ~/.pi/agent/skills/foo/scripts/build.js` | PASSES |
+| `python .pi/skills/foo/tool.py` | PASSES |
+| `ls .pi/skills/foo/` | PASSES |
+| `find .pi/skills/foo/scripts -type f` | PASSES |
+| `grep -R TODO .pi/skills/foo/scripts` | PASSES |
 | `find . -name "*.ts"` | PASSES |
 | `find .` | PASSES |
-| `ls .pi/skills/` | PASSES |
 | `grep -R foo .` | PASSES |
-| `grep -R foo src/` | PASSES |
 
 ### Read autocorrect (silent)
 
