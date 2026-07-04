@@ -1,66 +1,62 @@
 /**
- * Bash guard — blocks attempts to read/search SKILL.md via bash commands.
+ * pi-skill-paths — Bash guard
+ *
+ * Blocks attempts to read or search Pi skill files via bash commands.
  *
  * Rules:
- *   cat/sed/head + SKILL.md → block (always, no path check needed)
- *   find/grep/ls/rg + SKILL.md/known-skill/word-skill + skill-ish/home/recursive path → block
+ *   cat/sed/head + skill-like path containing SKILL.md → block
+ *   find/grep/ls/rg + skill-ish path (home, recursive, skill reference) → block
  *
- * Returns canonical read path when a known skill is detected.
+ * Does NOT block:
+ *   cat package.json
+ *   cat my-SKILL.md-notes.txt (no skill-like path)
+ *   find . -name "*.ts" (no skill reference)
+ *   ls .pi/skills/ (no SKILL.md or skill name, just directory listing)
  */
 
 import type { SkillMap } from "./skill-map.js";
 
-// Tools that should only trigger on skill-ish paths
-const PATH_SENSITIVE_TOOLS = /\b(find|grep|ls|rg)\b/;
+// Tool categories
+const READ_TOOLS = /\b(cat|sed|head)\b/;
+const SEARCH_TOOLS = /\b(find|grep|ls|rg)\b/;
 
-// Tools that trigger on any SKILL.md mention
-const ANY_PATH_TOOLS = /\b(cat|sed|head)\b/;
+// Skill-like path patterns — must match for READ_TOOLS to trigger
+const SKILL_PATH_RE =
+  /\.pi\/(agent\/)?skills\/[^/]+\/SKILL\.md|\.agents\/skills\/[^/]+\/SKILL\.md|~\/\.pi\/(agent\/)?skills\/|~\/\.agents\/skills\/|\/home\/[^/]+\/\.pi\/(agent\/)?skills\/|\/home\/[^/]+\/\.agents\/skills\//i;
 
-// Patterns that indicate a skill-ish path
-// (checked via hasSkillishPath — any match is sufficient)
+// Patterns that indicate a skill-ish / dangerous path context
 const SKILLISH_PATH_PATTERNS = [
-  // /home/user/ paths
-  /\/home\/[^/]+\/\.pi\/(agent\/)?skills\//,
-  /\/home\/[^/]+\/\.agents\/(skills\/)?/,
-
-  // ~/.pi/ and ~/.agents/ paths
+  // ~ /home paths with skill references
   /~\/\.pi\/(agent\/)?skills\//,
   /~\/\.agents\//,
+  /\/home\/[^/]+\/\.pi\/(agent\/)?skills\//,
+  /\/home\/[^/]+\/\.agents\//,
 
-  // .pi/skills/ and .agents/skills/ relative paths
-  /\b\.pi\/(agent\/)?skills\//,
-  /\b\.agents\/(skills\/)?/,
+  // find ~ with skill
+  /\bfind\s+~.*SKILL/i,
+  /\bfind\s+~.*skill/i,
 
-  // find ~ variants
-  /\bfind\s+~\b.*SKILL/i,
-  /\bfind\s+~\b.*skill/i,
-  /\bfind\s+~\s+(-|\\w)/,
-  /\bfind\s+~\s*$/,
-
-  // grep -R/r ~ variants
+  // grep -R ~ with skill
   /\bgrep\s+-[rR]\b\s+.*SKILL.*~/i,
   /\bgrep\s+-[rR]\b\s+~.*SKILL/i,
   /\bgrep\s+-[rR]\b\s+.*skill.*~/i,
   /\bgrep\s+-[rR]\b\s+~.*skill/i,
 
-  // find /home/ variants
+  // find /home/ with skill
   /\bfind\s+\/home\//,
   /\bgrep\s+-[rR]\b.*\/home\//,
 
-  // find . (recursive) with skill reference
+  // find . (recursive) with skill reference — only if SKILL/skill is mentioned
   /\bfind\s+\.\s+.*SKILL/i,
   /\bfind\s+\.\s+.*skill/i,
-  /\bfind\s+\.\s*$/,
-  /\bfind\s+\.\s+-/,
 
-  // grep -R . with skill reference
-  /\bgrep\s+-[rR]\b\s+.*SKILL\s+\.\s*$/i,
-  /\bgrep\s+-[rR]\b\s+.*skill\s+\.\s*$/i,
+  // grep -R . with skill reference — only if SKILL/skill is mentioned
+  /\bgrep\s+-[rR]\b\s+.*SKILL/i,
+  /\bgrep\s+-[rR]\b\s+.*skill/i,
 ];
 
 // Known skill names from the map
 function findSkillNameInCommand(cmd: string, skillMap: SkillMap): string | null {
-  // First try exact match against known skill names (longest first)
   const sorted = [...skillMap.keys()].sort((a, b) => b.length - a.length);
   const cmdLower = cmd.toLowerCase();
   for (const name of sorted) {
@@ -71,8 +67,20 @@ function findSkillNameInCommand(cmd: string, skillMap: SkillMap): string | null 
   return null;
 }
 
+function makeReason(canonical: string): string {
+  return `pi-skill-paths blocked bash access to SKILL.md. Use read tool: ${canonical}`;
+}
+
+function makeGenericReason(): string {
+  return "pi-skill-paths blocked bash access to SKILL.md. Use read tool.";
+}
+
 function hasSkillishPath(cmd: string): boolean {
   return SKILLISH_PATH_PATTERNS.some((p) => p.test(cmd));
+}
+
+function isSkillPath(cmd: string): boolean {
+  return SKILL_PATH_RE.test(cmd);
 }
 
 export interface BashGuardResult {
@@ -84,44 +92,44 @@ export function checkBashSkillAccess(
   command: string,
   skillMap: SkillMap,
 ): BashGuardResult {
-  // Check for cat/sed/head + SKILL.md (any path)
-  if (ANY_PATH_TOOLS.test(command) && /SKILL\.md/i.test(command)) {
-    const skillName = findSkillNameInCommand(command, skillMap);
-    if (skillName) {
-      const canonical = skillMap.get(skillName)?.canonicalPath;
-      if (canonical) {
-        return {
-          blocked: true,
-          reason: `Не ищи skill через bash. Прочитай через read: ${canonical}`,
-        };
+  // ── Rule 1: cat/sed/head + skill-like path with SKILL.md ─────────
+  if (READ_TOOLS.test(command)) {
+    // Only block if the path is clearly a skill path (contains .pi/agent/skills, .agents/skills, etc.)
+    if (isSkillPath(command)) {
+      const skillName = findSkillNameInCommand(command, skillMap);
+      if (skillName) {
+        const canonical = skillMap.get(skillName)?.canonicalPath;
+        if (canonical) {
+          return { blocked: true, reason: makeReason(canonical) };
+        }
       }
+      return { blocked: true, reason: makeGenericReason() };
     }
-    return {
-      blocked: true,
-      reason: "Не ищи SKILL.md через bash. Используй read tool.",
-    };
+    // Otherwise allow — e.g. cat package.json, cat my-SKILL.md-notes.txt
+    return { blocked: false, reason: "" };
   }
 
-  // Check for find/grep/ls/rg + SKILL.md/known-skill/word-skill + skill-ish path
-  if (PATH_SENSITIVE_TOOLS.test(command)) {
+  // ── Rule 2: find/grep/ls/rg + skill-ish path ─────────────────────
+  if (SEARCH_TOOLS.test(command)) {
     const hasSkillMd = /SKILL\.md/i.test(command);
     const skillName = findSkillNameInCommand(command, skillMap);
+    // "ls .pi/skills/" should pass — it's a directory listing, not a search for SKILL.md
+    const isLsOnly = /\bls\b/.test(command) && !hasSkillMd && !skillName && !/\bskill\b/i.test(command);
+
+    if (isLsOnly) {
+      return { blocked: false, reason: "" };
+    }
+
     const mentionsSkill = hasSkillMd || skillName || /\bskill\b/i.test(command);
 
     if (mentionsSkill && hasSkillishPath(command)) {
       if (skillName) {
         const canonical = skillMap.get(skillName)?.canonicalPath;
         if (canonical) {
-          return {
-            blocked: true,
-            reason: `Не ищи skill через bash. Прочитай через read: ${canonical}`,
-          };
+          return { blocked: true, reason: makeReason(canonical) };
         }
       }
-      return {
-        blocked: true,
-        reason: "Не ищи SKILL.md через bash. Используй read tool.",
-      };
+      return { blocked: true, reason: makeGenericReason() };
     }
   }
 

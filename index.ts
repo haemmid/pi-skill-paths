@@ -1,23 +1,24 @@
 /**
- * skill-guard — Prevents the LLM from reading skills via bash (cat/sed/head/find/grep)
+ * pi-skill-paths — Prevents the LLM from reading skill files via bash
  * and autocorrects read tool calls that point to skill directories.
  *
- * Placement: .pi/extensions/skill-guard/ (project-local, loaded after trust)
+ * Placement: installed via `pi install` (global) or project-local in settings.json
  * Hot-reload: /reload
  *
  * Behavior:
  *   read: skill-like path → canonical SKILL.md
- *   bash: cat/sed/head + SKILL.md → block
- *         find/grep/ls + SKILL.md/known-skill + home/skill-ish path → block
+ *   bash: cat/sed/head + skill path → block
+ *         find/grep/ls + skill-ish path → block
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
+import type { SkillMap } from "./skill-map.js";
 import { buildSkillMap } from "./skill-map.js";
 import { checkBashSkillAccess } from "./bash-guard.js";
 import { normalizeSkillReadPath } from "./read-autocorrect.js";
 
-let skillMap: ReturnType<typeof buildSkillMap> | null = null;
+let skillMap: SkillMap | null = null;
 
 export default function (pi: ExtensionAPI) {
   // Build skill map once at session start
@@ -27,7 +28,10 @@ export default function (pi: ExtensionAPI) {
 
   // Intercept tool calls
   pi.on("tool_call", async (event, ctx) => {
-    if (!skillMap) return;
+    // If tool_call arrives before session_start, lazily build the map
+    if (!skillMap) {
+      skillMap = await buildSkillMap(ctx.cwd);
+    }
 
     // ── 1. Read autocorrect (mutate in-place, non-blocking) ──────────
     if (isToolCallEventType("read", event)) {

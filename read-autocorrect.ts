@@ -1,9 +1,11 @@
 /**
- * Read autocorrect — normalizes skill-like read paths to canonical SKILL.md.
+ * pi-skill-paths — Read autocorrect
  *
- * Rules:
- *   1. Path ends with skill directory (no SKILL.md) → append /SKILL.md
- *   2. Path matches known skill → replace with canonical absolute path
+ * Normalizes skill-like read paths to canonical SKILL.md.
+ *
+ * Rules (in priority order):
+ *   1. Path matches a known skill → replace with canonical absolute path
+ *   2. Path looks like a skill directory (no SKILL.md) → append /SKILL.md
  *   3. Relative .pi/skills/ path → resolve to absolute
  *
  * Does NOT autocorrect if path contains ".." traversal (too risky).
@@ -14,23 +16,32 @@ import { resolve, isAbsolute } from "node:path";
 
 import type { SkillMap } from "./skill-map.js";
 
-// Skill directory patterns (relative or absolute)
+// Skill directory patterns (relative or absolute, without SKILL.md)
 const SKILL_DIR_PATTERNS = [
   /\.pi\/skills\/[^/]+$/,              // .pi/skills/foo
   /\.agents\/skills\/[^/]+$/,          // .agents/skills/foo
   /\/\.pi\/agent\/skills\/[^/]+$/,     // /.../.pi/agent/skills/foo
   /\/\.agents\/skills\/[^/]+$/,        // /.../.agents/skills/foo
+  /~\/\.pi\/agent\/skills\/[^/]+$/,    // ~/.pi/agent/skills/foo
+  /~\/\.agents\/skills\/[^/]+$/,       // ~/.agents/skills/foo
 ];
 
 // Path traversal check — if detected, don't autocorrect
 const TRAVERSAL_PATTERN = /\.\./;
 
-// Skill-ish path patterns (for known skill detection)
+// Skill-ish path patterns (for relative resolution)
 const SKILLISH_PATH_RE = /\.pi\/(agent\/)?skills\/|\.agents\/skills\//;
 
-export interface ReadAutocorrectResult {
-  correctedPath: string;
-}
+// Regex to extract skill name from a skill-like path
+// Matches:
+//   .pi/skills/<name>, .pi/agent/skills/<name>, .agents/skills/<name>
+//   ~/.pi/agent/skills/<name>, ~/.agents/skills/<name>
+//   /home/user/.pi/agent/skills/<name>, /home/user/.agents/skills/<name>
+const SKILL_NAME_RE =
+  /^(?:~\/)?(?:\.pi\/(?:agent\/)?skills|\.agents\/skills)\/([^/]+)(?:\/SKILL\.md)?$/;
+
+const ABSOLUTE_SKILL_NAME_RE =
+  /^(?:\/home\/[^/]+\/)?(?:\.pi\/(?:agent\/)?skills|\.agents\/skills)\/([^/]+)(?:\/SKILL\.md)?$/;
 
 function matchesSkillDirPattern(path: string): boolean {
   return SKILL_DIR_PATTERNS.some((p) => p.test(path));
@@ -41,10 +52,11 @@ function isSkillishPath(path: string): boolean {
 }
 
 function extractSkillNameFromPath(path: string): string | null {
-  // .pi/skills/<name>/SKILL.md → <name>
-  // .pi/skills/<name> → <name>
-  // ~/.pi/agent/skills/<name>/SKILL.md → <name>
-  const match = path.match(/(?:\.pi\/(?:agent\/)?skills|\.agents\/skills)\/([^/]+)(?:\/SKILL\.md)?$/);
+  // Try relative/tilde pattern first
+  let match = path.match(SKILL_NAME_RE);
+  if (match) return match[1];
+  // Try absolute path pattern
+  match = path.match(ABSOLUTE_SKILL_NAME_RE);
   if (match) return match[1];
   return null;
 }
@@ -59,20 +71,26 @@ export function normalizeSkillReadPath(
     return null;
   }
 
-  // Case 1: Path looks like a skill directory (missing SKILL.md)
-  if (matchesSkillDirPattern(path) && !/SKILL\.md$/i.test(path)) {
-    return path + "/SKILL.md";
-  }
+  // Expand ~ to $HOME for consistent matching
+  const expanded = path.startsWith("~/")
+    ? (process.env.HOME ?? "/home/haemmid") + path.slice(1)
+    : path;
 
-  // Case 2: Path matches a known skill
-  const skillName = extractSkillNameFromPath(path);
+  // Case 1: Path matches a known skill → canonical path wins
+  const skillName = extractSkillNameFromPath(expanded);
   if (skillName && skillMap.has(skillName)) {
     return skillMap.get(skillName)!.canonicalPath;
   }
 
-  // Case 3: Relative .pi/skills/ path without known skill — resolve to absolute
+  // Case 2: Relative .pi/skills/ path without known skill — resolve to absolute
   if (isSkillishPath(path) && !isAbsolute(path)) {
-    return resolve(cwd, path);
+    const resolved = resolve(cwd, path);
+    return /SKILL\.md$/i.test(resolved) ? resolved : resolved + "/SKILL.md";
+  }
+
+  // Case 3: Path looks like a skill directory (missing SKILL.md)
+  if (matchesSkillDirPattern(expanded) && !/SKILL\.md$/i.test(expanded)) {
+    return expanded + "/SKILL.md";
   }
 
   return null;

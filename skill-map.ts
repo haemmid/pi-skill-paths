@@ -1,9 +1,9 @@
 /**
- * Build a reverse map: skill name → { canonicalPath, scope }
+ * pi-skill-paths — Build a reverse map: skill name → { canonicalPath, scope }
  *
  * Scans filesystem at session_start:
- *   1. Project roots: cwd → git root (or fs root)
- *   2. Global roots: ~/.pi/agent/skills/, ~/.agents/skills/
+ *   1. Project roots: cwd → git root (up to 10 levels)
+ *   2. Global roots: $HOME/.pi/agent/skills/, $HOME/.agents/skills/
  *
  * Conflict policy:
  *   - project wins over global
@@ -11,7 +11,7 @@
  */
 
 import { readdir, stat } from "node:fs/promises";
-import { join, resolve, isAbsolute } from "node:path";
+import { join } from "node:path";
 
 export interface SkillEntry {
   canonicalPath: string;
@@ -20,13 +20,22 @@ export interface SkillEntry {
 
 export type SkillMap = Map<string, SkillEntry>;
 
-const SKILL_DIR_NAME = ".pi/skills";
+const SKILL_DIR_NAMES = [".pi/skills", ".agents/skills"];
 const AGENTS_SKILLS_DIR = ".agents/skills";
+const MAX_PROJECT_DEPTH = 10;
 
-async function discoverSkillDirs(root: string): Promise<Map<string, string>> {
+async function discoverSkillDirs(
+  root: string,
+  home: string,
+): Promise<Map<string, string>> {
   const skills = new Map<string, string>();
 
-  for (const baseDir of [SKILL_DIR_NAME, AGENTS_SKILLS_DIR]) {
+  for (const baseDir of SKILL_DIR_NAMES) {
+    // Skip .agents/skills when root is the home directory —
+    // that location is a global skills directory, not a project one.
+    if (baseDir === AGENTS_SKILLS_DIR && root === home) {
+      continue;
+    }
     const dir = join(root, baseDir);
     try {
       const entries = await readdir(dir, { withFileTypes: true });
@@ -46,24 +55,23 @@ async function discoverSkillDirs(root: string): Promise<Map<string, string>> {
   return skills;
 }
 
-function findProjectRoot(cwd: string): string {
-  // Walk up to git root or filesystem root
+async function findProjectRoot(cwd: string): Promise<string> {
   let dir = cwd;
-  const root = "/";
-  while (dir !== root) {
+  let depth = 0;
+  while (depth < MAX_PROJECT_DEPTH) {
+    const gitHead = join(dir, ".git");
     try {
-      const gitHead = join(dir, ".git");
-      const gitDirStat = stat(gitHead).catch(() => null);
-      if (gitDirStat) return dir;
-      // .git file (gitdir reference in worktrees)
-      const gitFileStat = stat(gitHead).catch(() => null);
-      if (gitFileStat?.isFile()) return dir;
+      const st = await stat(gitHead);
+      if (st.isDirectory() || st.isFile()) {
+        return dir;
+      }
     } catch {
-      // ignore
+      // .git doesn't exist here
     }
     const parent = join(dir, "..");
     if (parent === dir) break; // reached filesystem root
     dir = parent;
+    depth++;
   }
   return cwd;
 }
@@ -76,19 +84,32 @@ export async function buildSkillMap(cwd: string): Promise<SkillMap> {
   const map = new Map<string, SkillEntry>();
   const home = getUserHome();
 
-  // 1. Project roots
-  const projectRoot = findProjectRoot(cwd);
-  let root = projectRoot;
-  while (root !== "/") {
-    const projectSkills = await discoverSkillDirs(root);
+  // 1. Project roots — scan cwd and its ancestors up to git root
+  //    Walk upward from cwd; stop at git root or MAX_PROJECT_DEPTH.
+  //    Each directory is scanned for .pi/skills/ and .agents/skills/.
+  let dir = cwd;
+  let depth = 0;
+  while (depth < MAX_PROJECT_DEPTH) {
+    const projectSkills = await discoverSkillDirs(dir, home);
     for (const [name, path] of projectSkills) {
       if (!map.has(name)) {
         map.set(name, { canonicalPath: path, scope: "project" });
       }
     }
-    const parent = join(root, "..");
-    if (parent === root) break;
-    root = parent;
+    // Check if this dir is a git root — if so, stop here
+    const gitHead = join(dir, ".git");
+    try {
+      const st = await stat(gitHead);
+      if (st.isDirectory() || st.isFile()) {
+        break; // git root reached, don't go further up
+      }
+    } catch {
+      // no .git here
+    }
+    const parent = join(dir, "..");
+    if (parent === dir) break;
+    dir = parent;
+    depth++;
   }
 
   // 2. Global roots
@@ -107,7 +128,6 @@ export async function buildSkillMap(cwd: string): Promise<SkillMap> {
         if (!s?.isFile()) continue;
 
         if (map.has(entry.name)) {
-          // Conflict: project already has it, or another global root claimed it
           const existing = map.get(entry.name)!;
           if (existing.scope === "project") {
             // Project wins silently
@@ -115,7 +135,7 @@ export async function buildSkillMap(cwd: string): Promise<SkillMap> {
           }
           // Two different global roots with same name
           console.warn(
-            `[skill-guard] Conflict: skill "${entry.name}" found in multiple global roots:\n` +
+            `[pi-skill-paths] Conflict: skill "${entry.name}" found in multiple global roots:\n` +
             `  ${existing.canonicalPath}\n` +
             `  ${skillMd}\n` +
             `Keeping first.`,

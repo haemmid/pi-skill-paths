@@ -8,6 +8,7 @@ Public Pi extension that prevents reading skill files via bash and autocorrects 
 - `skill-map.ts` — `buildSkillMap()` — scans filesystem, builds `Map<name, {canonicalPath, scope}>`
 - `bash-guard.ts` — `checkBashSkillAccess()` — blocks dangerous bash commands
 - `read-autocorrect.ts` — `normalizeSkillReadPath()` — silent path normalization for read tool
+- `pi-skill-paths.test.ts` — unit tests
 
 ## Stack
 
