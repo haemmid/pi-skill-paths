@@ -10,12 +10,6 @@ Designed for use with [jmfederico/pi-web](https://github.com/jmfederico/pi-web).
 [![Pi Extension](https://img.shields.io/badge/Pi-extension-6f42c1)](https://pi.dev/packages/%40haemmid/pi-skill-paths)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## Not the same as `pi-skill-guard`
-
-`pi-skill-guard` recovers from unknown tool calls by injecting skill docs or falling back to bash.
-
-`pi-skill-paths` runs before tool execution. It fixes wrong `read` paths to known `SKILL.md` files and blocks slow or UI-invisible bash access such as `cat`, `sed`, `head`, `find`, and recursive `grep`.
-
 ## Why
 
 Agents sometimes try to read skill files using bash (`cat ~/.pi/agent/skills/.../SKILL.md`), which:
