@@ -1,0 +1,50 @@
+{
+  "name": "@haemmid/pi-skill-guard",
+  "version": "0.1.0",
+  "description": "Prevents reading skill files via bash and autocorrects read tool paths.",
+  "license": "MIT",
+  "type": "module",
+  "private": false,
+  "homepage": "https://github.com/haemmid/pi-skill-guard#readme",
+  "bugs": {
+    "url": "https://github.com/haemmid/pi-skill-guard/issues"
+  },
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "pi",
+    "pi-web",
+    "skill-guard",
+    "skills",
+    "path-autocorrect"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/haemmid/pi-skill-guard.git"
+  },
+  "pi": {
+    "extensions": [
+      "./"
+    ]
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "*.ts",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-coding-agent": {
+      "optional": true
+    }
+  }
+}
