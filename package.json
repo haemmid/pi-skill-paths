@@ -1,6 +1,6 @@
 {
   "name": "@haemmid/pi-skill-paths",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Canonical SKILL.md path correction and bash skill-access guard for Pi.",
   "license": "MIT",
   "type": "module",
