@@ -8,7 +8,7 @@ This project follows semantic versioning for public releases.
 
 ### Added
 
-- Initial release of `@haemmid/pi-skill-guard`.
+- Initial release of `@haemmid/pi-skill-paths`.
 - Bash guard: blocks `cat`/`sed`/`head` + `SKILL.md` and `find`/`grep`/`ls`/`rg` + skill-ish paths.
 - Read autocorrect: normalizes skill directory paths, resolves relative `.pi/skills/` paths, substitutes canonical absolute paths.
 - `buildSkillMap()` — filesystem scan of project and global skill directories.

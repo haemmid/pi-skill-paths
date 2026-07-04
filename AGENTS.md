@@ -1,4 +1,4 @@
-# pi-skill-guard
+# pi-skill-paths
 
 Public Pi extension that prevents reading skill files via bash and autocorrects read tool paths.
 

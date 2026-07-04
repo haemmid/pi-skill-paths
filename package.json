@@ -1,26 +1,33 @@
 {
-  "name": "@haemmid/pi-skill-guard",
+  "name": "@haemmid/pi-skill-paths",
   "version": "0.1.0",
-  "description": "Prevents reading skill files via bash and autocorrects read tool paths.",
+  "description": "Canonical SKILL.md path correction and bash skill-access guard for Pi.",
   "license": "MIT",
   "type": "module",
   "private": false,
-  "homepage": "https://github.com/haemmid/pi-skill-guard#readme",
+  "homepage": "https://github.com/haemmid/pi-skill-paths#readme",
   "bugs": {
-    "url": "https://github.com/haemmid/pi-skill-guard/issues"
+    "url": "https://github.com/haemmid/pi-skill-paths/issues"
   },
   "keywords": [
     "pi-package",
     "pi-extension",
     "pi",
+    "pi-agent",
     "pi-web",
-    "skill-guard",
+    "skill",
     "skills",
-    "path-autocorrect"
+    "skill-paths",
+    "skill-guard",
+    "guard",
+    "SKILL.md",
+    "read",
+    "bash",
+    "path-correction"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/haemmid/pi-skill-guard.git"
+    "url": "git+https://github.com/haemmid/pi-skill-paths.git"
   },
   "pi": {
     "extensions": [

@@ -1,14 +1,20 @@
-# 🛡️ pi-skill-guard
+# pi-skill-paths
 
-> Prevents reading skill files via bash and autocorrects `read` tool paths.
+Canonical `SKILL.md` path correction and bash skill-access guard for Pi.
 
-`pi-skill-guard` blocks the agent from reading `SKILL.md` files through bash commands (`cat`, `sed`, `head`, `find`, `grep`) and silently normalizes `read` tool calls that point to skill directories or relative paths.
+`pi-skill-paths` blocks the agent from reading `SKILL.md` files through bash commands (`cat`, `sed`, `head`, `find`, `grep`) and silently normalizes `read` tool calls that point to skill directories or relative paths.
 
 Designed for use with [jmfederico/pi-web](https://github.com/jmfederico/pi-web).
 
-[![npm](https://img.shields.io/npm/v/@haemmid/pi-skill-guard)](https://www.npmjs.com/package/@haemmid/pi-skill-guard)
-[![Pi Extension](https://img.shields.io/badge/Pi-extension-6f42c1)](https://pi.dev/packages/%40haemmid/pi-skill-guard)
+[![npm](https://img.shields.io/npm/v/@haemmid/pi-skill-paths)](https://www.npmjs.com/package/@haemmid/pi-skill-paths)
+[![Pi Extension](https://img.shields.io/badge/Pi-extension-6f42c1)](https://pi.dev/packages/%40haemmid/pi-skill-paths)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+## Not the same as `pi-skill-guard`
+
+`pi-skill-guard` recovers from unknown tool calls by injecting skill docs or falling back to bash.
+
+`pi-skill-paths` runs before tool execution. It fixes wrong `read` paths to known `SKILL.md` files and blocks slow or UI-invisible bash access such as `cat`, `sed`, `head`, `find`, and recursive `grep`.
 
 ## Why
 
@@ -32,19 +38,19 @@ This extension prevents that and auto-corrects paths so the agent uses `read` th
 Install from npm:
 
 ```bash
-pi install npm:@haemmid/pi-skill-guard
+pi install npm:@haemmid/pi-skill-paths
 ```
 
 Install from git:
 
 ```bash
-pi install git:github.com/haemmid/pi-skill-guard
+pi install git:github.com/haemmid/pi-skill-paths
 ```
 
 Or install from a local checkout:
 
 ```bash
-pi install /path/to/pi-skill-guard
+pi install /path/to/pi-skill-paths
 ```
 
 ## Behavior
