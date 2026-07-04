@@ -58,10 +58,6 @@ pi install /path/to/pi-skill-paths
 |---------|--------|
 | `cat ~/.pi/agent/skills/ask-chatgpt/SKILL.md` | BLOCK |
 | `cat ~/.agents/skills/humanizer/SKILL.md` | BLOCK |
-| `sed -n '1,50p' .pi/skills/foo/SKILL.md` | BLOCK |
-| `head ~/.agents/skills/visual-test/SKILL.md` | BLOCK |
-| `cat ~/.pi/agent/skills/ask-chatgpt/SKILL.md` | BLOCK |
-| `cat ~/.agents/skills/humanizer/SKILL.md` | BLOCK |
 | `sed -n '1,80p' .pi/skills/foo/SKILL.md` | BLOCK |
 | `head ~/.agents/skills/visual-test/SKILL.md` | BLOCK |
 | `find /home/haemmid -name SKILL.md` | BLOCK |
